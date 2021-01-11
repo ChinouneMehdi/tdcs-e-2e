@@ -60,3 +60,42 @@ jobs:
           cmake .. -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
       - name: Building
         run: make -C build -j$(nproc)
+
+  Nvidia:
+    name: Nvidia-${{ matrix.build_type }}
+
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Cache Nvidia Compiler Files
+        id: cache-nvidia
+        uses: actions/cache@v2
+        with:
+          path: |
+            ./nvhpc-21-5_21.5_amd64.deb
+            ./nvhpc-2021_21.5_amd64.deb
+          key: nvidia-${{ hashFiles('*.deb') }}
+      - name: Download Nvidia Compiler Files
+        if: steps.cache-nvidia.outputs.cache-hit != 'true'
+        run: |
+          wget https://developer.download.nvidia.com/hpc-sdk/21.5/nvhpc-21-5_21.5_amd64.deb \
+               https://developer.download.nvidia.com/hpc-sdk/21.5/nvhpc-2021_21.5_amd64.deb
+      - name: Install Nvidia Compiler
+        run: |
+          sudo apt-get install -y ./nvhpc-21-5_21.5_amd64.deb ./nvhpc-2021_21.5_amd64.deb
+          echo "/opt/nvidia/hpc_sdk/Linux_x86_64/21.5/compilers/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/21.5/compilers/lib" >> $GITHUB_ENV
+      - name: Configuring
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_Fortran_COMPILER=nvfortran -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      - name: Building
+        run: make -C build -j$(nproc)
